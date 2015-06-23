@@ -1,0 +1,126 @@
+// Tableaux
+//--------------------------------------------------------------------------------------------------
+table {
+	width: 100%;
+
+	thead {
+		tr {
+			th {
+				padding: 6px 8px;
+				text-align: left;
+				vertical-align: middle;
+			}
+		}
+	}
+
+	tbody {
+
+		tr {
+
+			td {
+				padding: 6px 8px;
+				text-align: left;
+				vertical-align: middle;
+			}
+		}
+	}
+
+	tbody td input[type=text],
+	tbody td input[type=number],
+	tfoot td input[type=text],
+	tfoot td input[type=number] {
+		width: 100%;
+		padding: 3px;
+	}
+
+	tfoot {
+
+		td {
+			font-weight: bold;
+
+			input[disabled] {
+				font-weight: bold;
+			}
+		}
+	}
+}
+
+// Tableau avec actions
+table.t_actions {
+
+	tbody tr td.action_simple .ico {
+		width: 100%;
+	}
+}
+
+// Tableau avec types de contrats (Engage, options, ...)
+.t_evo_1 {
+	thead {
+
+		tr.col_types {
+
+			th {
+				text-align: center;
+				font-size: 1.1em;
+			}
+		}		 
+	}
+
+	tfoot {
+		
+		tr {
+			td {
+				padding: 6px 8px;
+			}
+		}
+		tr.col_types td {
+			height: 10px;
+		}		
+	}
+}	
+
+// Tableau avec pagination
+table tfoot.pagination {
+	ul {
+		margin: 5px;
+		li {
+			display: inline-block;
+			margin: 0 2px;
+
+			&.pagination_infos {
+				float: right;
+				padding: 8px;
+				font-weight: normal;
+				font-style: italic;
+			}
+		}
+	}
+	button {
+		padding: 7px 10px;
+		line-height: 0.95em;
+	}
+}
+
+// Tableau avec actions => TO DO regles a generaliser
+#sortable {
+	thead th {
+		position: relative;
+		span.drag {
+			display: block;
+			padding-right: 25px;
+			cursor: move;
+		}
+		span.reorder {
+			position: absolute;
+			top: 50%;
+			right: 0;
+			margin-top: -15px;
+		}
+	}
+}
+
+// Footer
+//--------------------------------------------------------------------------------------------------
+footer {
+
+}
