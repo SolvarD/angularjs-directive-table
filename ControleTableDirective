@@ -9,7 +9,7 @@
 
 
 App.directive('controleTabledev', ['$timeout', '$sce', function ($timeout, $sce) {
-    var datavisible = [];
+ var datavisible = [];
     var header = [];
     var action = false;
     var menu = "";
@@ -68,6 +68,7 @@ App.directive('controleTabledev', ['$timeout', '$sce', function ($timeout, $sce)
             action8: '&',
             action9: '&',
             action10: '&',
+            rowaction: '&',
             selectlist: '=',
             saveposition: '&',
             valuespecificrows: "="
@@ -85,7 +86,6 @@ App.directive('controleTabledev', ['$timeout', '$sce', function ($timeout, $sce)
             dragable = false;
             frozen = false;
             filter = false;
-           // primaryKey = "";
             maxrow = 0;
             selectnbrow = "";
             customcolumn = false;
@@ -105,8 +105,6 @@ App.directive('controleTabledev', ['$timeout', '$sce', function ($timeout, $sce)
                 datavisible = attrs["visible"].split(',');
             if (attrs["colonnes"] !== undefined && attrs["colonnes"] !== null)
                 header = attrs["colonnes"].split(',');
-            //if (attrs["key"] !== undefined && attrs["key"] !== null)
-            //    primaryKey = attrs["key"];
             if (attrs["customcolumn"] !== undefined && attrs["customcolumn"] !== null && attrs["customcolumn"] !== "")
             	customcolumn = attrs["customcolumn"];
             if (attrs["selectnbrow"] !== undefined && attrs["selectnbrow"] !== null && attrs["selectnbrow"] !== "")
@@ -205,7 +203,7 @@ App.directive('controleTabledev', ['$timeout', '$sce', function ($timeout, $sce)
                         $scope.selectnbrow = value;
                         $scope.pages = [];
                         $scope.selectnbrow = ($scope.selectnbrow !== undefined && $scope.selectnbrow !== null ? $scope.selectnbrow : 10);
-                        $scope.nbpage = Math.ceil($scope.data.length / $scope.selectnbrow);
+                        $scope.GetNbPage($scope.data.length);
                         for (var g = 1; g <= $scope.nbpage ; g++) {
                             $scope.pages.push(g);
                         }
@@ -214,35 +212,46 @@ App.directive('controleTabledev', ['$timeout', '$sce', function ($timeout, $sce)
                     }
                 });
 
-                    
-            $scope.watchedit = $scope.$watchCollection("filteredItems", function (value, old) {
+            $scope.watchedit = $scope.$watchCollection("data", function (value, old) {
             	if (value === undefined || value === null) return;
             	if (value != old) {
             		$scope.pages = [];
             		$scope.selectnbrow = ($scope.selectnbrow !== undefined && $scope.selectnbrow !== null ? $scope.selectnbrow : 10);
-            		$scope.nbpage = Math.ceil($scope.data.length / $scope.selectnbrow);
-            		for (var g = 1; g <= $scope.nbpage ; g++) {
-            			$scope.pages.push(g);
-            		}
+            		$scope.GetNbPage(value.length);
+            		$scope.intervalmax = $scope.selectnbrow;
             		$scope.total = value.length;
             		$scope.checkall = false;
+            		
             	}
             });
-	        
+               
+            //$scope.watchedit = $scope.$watchCollection("filteredItems", function (value, old) {
+            //	if (value === undefined || value === null) return;
+            //	if (value != old) {
+            //		$scope.pages = [];
+            //		$scope.selectnbrow = ($scope.selectnbrow !== undefined && $scope.selectnbrow !== null ? $scope.selectnbrow : 10);
+            //		$scope.GetNbPage($scope.data.length);
+            //		$scope.total = value.length;
+            //		$scope.checkall = false;
+            //	}
+            //});
+	        $scope.GetNbPage = function(nbrow) {
+	        	$scope.nbpage = Math.ceil(nbrow / $scope.selectnbrow);
+	        	for (var g = 1; g <= $scope.nbpage ; g++) {
+	        		$scope.pages.push({Value : g});
+	        	}
+	        };
             $scope.SelectAll = function () {
                 $scope.data.forEach(function (item, index) {
                     item.IsChecked = $scope.checkall;
                 });
             };
             $scope.PrevPage = function () {
-                $scope.intervalmin = (($scope.currentpage - 1) * $scope.selectnbrow) - $scope.selectnbrow;
-                $scope.intervalmax = $scope.intervalmin + $scope.selectnbrow;
+            	if ($scope.currentpage>1)
                 $scope.currentpage -= 1;
             };
             $scope.GoToPage = function (nbpage) {
                 $scope.currentpage = nbpage;
-                $scope.intervalmin = (nbpage * $scope.selectnbrow) - $scope.selectnbrow;
-                $scope.intervalmax = $scope.intervalmin + $scope.selectnbrow;
             };
             $scope.NextPage = function () {
                 $scope.intervalmin = (($scope.currentpage + 1) * $scope.selectnbrow) - $scope.selectnbrow;
@@ -275,9 +284,10 @@ App.directive('controleTabledev', ['$timeout', '$sce', function ($timeout, $sce)
                     $scope.bottomSorted[i] = true;
                 }
             };
+	        //Filtre
             if (filter !== false)
-                $scope.Filtre = function (valeur) {
-                    return $scope.filter({ val: valeur });
+            	$scope.Filtre = function (valeur) {
+            	return $scope.filter({ val: valeur });
                 };
             $scope.getDescendantProp = function (item, desc) {
                 return getDescendantProp(item, desc);
@@ -361,7 +371,9 @@ App.directive('controleTabledev', ['$timeout', '$sce', function ($timeout, $sce)
 
 				return num?num:"";
 			};
-			
+
+
+
         }
     };
 
@@ -415,12 +427,15 @@ App.directive('controleTabledev', ['$timeout', '$sce', function ($timeout, $sce)
 		var col = "<tfoot class=\"pagination\">";
 		col += "<tr><td colspan=\"{{ header.length +ttcolspan +" + ((colspans ? colspans.split(',').length - 1 : 0) + (selectlist ? 1 : 0)) + "}}\">";
         col += "<ul>";
-        col += "<li ng-if=\"currentpage > 1\"><button type=\"button\" value=\"start\" ng-click=\"GoToPage(1)\" ><span class=\"ico ico-pager-first\"></span></button></li>";
-        col += "<li ng-if=\"currentpage > 1\"><button type=\"button\" value=\"prev\" ng-click=\"PrevPage()\" ><span class=\"ico ico-pager-prev\"></span></button></li>";
-        col += "<li ng-if=\"pages.length > 1\" ng-repeat=\"page in pages\"><button type=\"button\" ng-click=\"GoToPage(page)\" ng-Class=\"{'current': currentpage == ($index+1)}\" >{{page}} </button></li>";
+        col += "<li ng-if=\"pages.length > 1\"><button type=\"button\" value=\"start\" ng-click=\"GoToPage(1)\" ><span class=\"ico ico-pager-first\"></span></button></li>";
+        col += "<li ng-if=\"pages.length > 1\"><button type=\"button\" value=\"prev\" ng-click=\"PrevPage()\" ><span class=\"ico ico-pager-prev\"></span></button></li>";
+        
+        col += "<li ><select ng-model=\"currentpage\"  ng-options=\"page.Value as page.Value for page in pages\" >" +
+				"</select></li>";
+
         col += "<li ng-if=\"currentpage != nbpage\"><button type=\"button\" value=\"next\" ng-click=\"NextPage()\" ><span class=\"ico ico-pager-next\"></span></button></li>";
         col += "<li ng-if=\"currentpage != nbpage\"><button type=\"button\" value=\"end\" ng-click=\"GoToPage(nbpage)\"><span class=\"ico ico-pager-last\"></span></button></li>";
-        col += "<li class=\"pagination_infos\">{{currentpage}} - {{nbpage}} de {{(data | filter: Filtre).length}} éléments</li>";
+        col += "<li class=\"pagination_infos\">{{currentpage}} - {{nbpage}} de {{(data | filter: Filtre).length }} éléments</li>";
         col += "</ul>";
         col += "</td>";
 		if ((action || pdf) !== false) {
@@ -432,17 +447,13 @@ App.directive('controleTabledev', ['$timeout', '$sce', function ($timeout, $sce)
     function AddRow(original) {
         var row = "";
         var td = "";
-        row += "<tr ng-repeat=\"(datakey,item) in filteredItems = (data | orderBy:predicate[columnselected]:renverse[columnselected]"; //
+        row += "<tr ng-repeat=\"(datakey,item) in (data | orderBy:predicate[columnselected]:renverse[columnselected]"; //
         if (filter !== false)
         	row += " | filter: Filtre";
-        if (pagination)
+        if (pagination)// traitement data 
         	row += " | limitTo: selectnbrow : (currentpage * selectnbrow) - selectnbrow"; //currentpage * selectnbrow *-1
        
             row += ")\"";
-
-        //if (pagination)
-        //    row += " ng-show=\"datakey >= intervalmin && datakey < intervalmax\"";
-
         row += "> ";
         if (selectlist && original) {
             td += "<td><input type=\"checkbox\" ng-model=\"item.IsChecked\" /></td>";
@@ -451,8 +462,7 @@ App.directive('controleTabledev', ['$timeout', '$sce', function ($timeout, $sce)
             var propriete = "";
 
             td += "<td ng-repeat=\"(tdindex, tditem) in datavisible\" ";
-           
-            if (frozen) {
+           if (frozen) {
                 if (original)
                     td += "ng-show=\"!colonnefrozen[datavisible[tdindex].split(';')[0]]\" ";
                 else
@@ -467,21 +477,23 @@ App.directive('controleTabledev', ['$timeout', '$sce', function ($timeout, $sce)
             //else {
             //    if (datavisible[j].split(';')[2] !== undefined && datavisible[j].split(';')[2] !== null) {
             //        propriete = datavisible[j].split(';')[2];
-            //    }
+    	//    }
+	   
 		td += "<div ng-if=\"datavisible[tdindex].split(';').length > 1\" ng-switch=\"datavisible[tdindex].split(';')[1]\">" +
                 "<span ng-switch-when=\"ico\" ng-click=\"icofunction[datavisible[tdindex].split(';')[3]]({item : item,index : datakey})\" class=\"ico datavisible[tdindex].split(';')[2]\"></span>" +
-                "<span ng-switch-when=\"data\">{{  item[datavisible[tdindex].split(';')[0]]  }}</span>" +
-	            "<span ng-switch-when=\"date\">{{  item[datavisible[tdindex].split(';')[0]] | date : formatdate }}</span>" +
-	            "<span ng-switch-when=\"fulldate\">{{  item[datavisible[tdindex].split(';')[0]] | date : formatdate+' HH:mm:ss' }}</span>" +
-				"<span ng-switch-when=\"bool\">{{  (item[datavisible[tdindex].split(';')[0]]? \"oui\":\"non\") }}</span>" +
-				"<span ng-switch-when=\"html\" ng-bind-html=\"item[datavisible[tdindex].split(';')[0]]\"></span>" +
-                "<a ng-switch-when=\"lien\" target=\"_blank\" href=\"{{  item[datavisible[tdindex].split(';')[0]] }}\" >{{  item[datavisible[tdindex].split(';')[0]]  }}</a>" +
+                "<span ng-switch-when=\"data\">{{  getDescendantProp(item,datavisible[tdindex].split(';')[0])  }}</span>" +
+	            "<span ng-switch-when=\"date\">{{  getDescendantProp(item,datavisible[tdindex].split(';')[0]) | date : formatdate }}</span>" +
+	            "<span ng-switch-when=\"fulldate\">{{  getDescendantProp(item,datavisible[tdindex].split(';')[0]) | date : formatdate+' HH:mm:ss' }}</span>" +
+				"<span ng-switch-when=\"bool\">{{  (getDescendantProp(item,datavisible[tdindex].split(';')[0])? \"oui\":\"non\") }}</span>" +
+				"<span ng-switch-when=\"html\" ng-bind-html=\"getDescendantProp(item,datavisible[tdindex].split(';')[0])\"></span>" +
+                "<a ng-switch-when=\"lien\" target=\"_blank\" href=\"{{  item[datavisible[tdindex].split(';')[0]] }}\" >{{  getDescendantProp(item,datavisible[tdindex].split(';')[0])  }}</a>" +
                 "<ul ng-switch-when=\"liste\">" +
-		"<li ng-repeat=\"li in item[datavisible[tdindex].split(';')[0]]\">" +
-                //for (var f = 0; f < datavisible[tdindex].split(';')[2].split('-').length; f++) {
-                //    li += "{{  li." + propriete.split('-')[f] + " }}";
-                //}
-		" </li></ul></div>";
+					"<li ng-repeat=\"li in item[datavisible[tdindex].split(';')[0]]\">" +
+							//for (var f = 0; f < datavisible[tdindex].split(';')[2].split('-').length; f++) {
+							//    li += "{{  li." + propriete.split('-')[f] + " }}";
+							//}
+					" </li></ul>"+
+			"<span ng-switch-default>echec du switch</span></div>";
 	    
     	// "{{getContentCell(datavisible[tdindex].split(';')[1], datavisible[tdindex].split(';')[0], datavisible[tdindex].split(';')[2])}}"+
             //}
