@@ -1,0 +1,608 @@
+//DERNIERE MAJ: 23/06/2015
+//controleTable By dimitri V1.0.0.3
+//1.0.0.4 modification filter gestion big data
+//modification du type img en ico
+//1.0.0.1 ajout de colonne checbox
+//1.0.0.2 correction de bugg pagination quand liste vide et gerer "action" non renseignées
+
+(function () {
+
+    angular
+    .module('app')
+    .directive('controleTable', brain)
+    /** @ngInject */
+    function brain() {
+        var datavisible = [];
+        var header = [];
+        var action = false;
+        var menu = "";
+        var pagination = false;
+        var frozen = false;
+        var filter = false;
+        var selectnbrow = "";
+        var customcolumn = false;
+        var selectlist = false;
+        var colspans = false;
+        var valuecolspan = false;
+        var icofunction = [];
+        var actionfunction = [];
+        var formatdate = "";
+        var rowtotal = false;
+        var addspecificrows = false;
+        var pdf = false;
+        var colonnefrozen = {}; // usage interne a la directive
+        return {
+            scope: {
+                data: '=',
+                edit: '&',
+                remove: '&',
+                duplicate: '&',
+                selectnbrow: '=',
+                filter: '&',
+                customcolumn: '&',
+                clickable: '=',
+                valuecolspan: '=',
+                frozen: '=',
+                visible: '=',
+                colonnes: '=',
+                icoaction1: '&',
+                icoaction2: '&',
+                icoaction3: '&',
+                icoaction4: '&',
+                icoaction5: '&',
+                icoaction6: '&',
+                icoaction7: '&',
+                icoaction8: '&',
+                icoaction9: '&',
+                icoaction10: '&',
+                action1: '&',
+                action2: '&',
+                action3: '&',
+                action4: '&',
+                action5: '&',
+                action6: '&',
+                action7: '&',
+                action8: '&',
+                action9: '&',
+                action10: '&',
+                rowaction: '&',
+                selectlist: '=',
+                saveposition: '&',
+                valuespecificrows: "="
+            },
+            templateNamespace: 'mySuperTable',
+            restrict: 'EA',
+            replace: true,
+            transclude: true,
+            template: function (element, attrs) {
+                datavisible = [];
+                header = [];
+                action = false;
+                menu = "";
+                pagination = false;
+                frozen = false;
+                filter = false;
+                selectnbrow = "";
+                customcolumn = false;
+                colspans = false;
+                valuecolspan = false;
+                icofunction = [];
+                actionfunction = [];
+                formatdate = "";
+                colonnefrozen = {};
+                rowtotal = false;
+                addspecificrows = false;
+                pdf = false;
+                if (angular.isDefined(attrs["visible"]) && attrs["visible"] !== null) {
+                    datavisible = attrs["visible"].split(',');
+                }
+                if (angular.isDefined(attrs["colonnes"]) && attrs["colonnes"] !== null) {
+                    header = attrs["colonnes"].split(',');
+                }
+                if (angular.isDefined(attrs["customcolumn"]) && attrs["customcolumn"] !== null && attrs["customcolumn"] !== "") {
+                    customcolumn = attrs["customcolumn"];
+                }
+                if (angular.isDefined(attrs["selectnbrow"]) && attrs["selectnbrow"] !== null && attrs["selectnbrow"] !== "") {
+                    selectnbrow = attrs["selectnbrow"];
+                }
+                if (angular.isDefined(attrs["frozen"]) && attrs["frozen"] !== null && attrs["frozen"] !== "") {
+                    frozen = (attrs["frozen"] == "true" ? true : false);
+                    for (var j = 0; j < datavisible.length; j++) {
+                        colonnefrozen[datavisible[j].split(';')[0]] = false;
+                    }
+                }
+                if (angular.isDefined(attrs["actions"]) && attrs["actions"] !== null && attrs["actions"] !== "") {
+                    action = attrs["actions"].split(',');
+                    actionfunction = [];
+                    for (var g = 0; g < action.length; g++) {
+                        actionfunction.push(attrs["action" + (g + 1)]);
+                    }
+                    getAction(action, actionfunction);
+                } else action = false;
+                if (angular.isDefined(attrs["pagination"]) && attrs["pagination"] !== null && attrs["pagination"] !== "") {
+                    pagination = (attrs["pagination"] == "true" ? true : false);                   
+                }
+                //if (attrs["dragable"] !== undefined && attrs["dragable"] !== null && attrs["dragable"] !== "") {
+                //    dragable = (attrs["dragable"] == "true" ? true : false);
+                //}
+                if (angular.isDefined(attrs["filter"]) && attrs["filter"] !== null && attrs["filter"] !== "") {
+                    filter = attrs["filter"];
+                }
+                if (angular.isDefined(attrs["colspans"]) && attrs["colspans"] !== null && attrs["colspans"] !== "") {
+                    colspans = attrs["colspans"];
+                }
+                if (angular.isDefined(attrs["valuecolspan"]) && attrs["valuecolspan"] !== null && attrs["valuecolspan"] !== "") {
+                    valuecolspan = attrs["valuecolspan"].split(',');
+                    icofunction = [];
+                    for (var x = 0; x < valuecolspan.length; x++) {
+                        icofunction.push(attrs["icoaction" + (x + 1)]);
+                    }
+                }
+                if (angular.isDefined(attrs["selectlist"]) && attrs["selectlist"] !== null && attrs["selectlist"] !== "")
+                    selectlist = (attrs["selectlist"] == "true" ? true : false);
+                if (angular.isDefined(attrs["formatdate"]) && attrs["formatdate"] !== null && attrs["formatdate"] !== "")
+                    formatdate = attrs["formatdate"];
+                if (angular.isDefined(attrs["rowtotal"]) && attrs["rowtotal"] !== null && attrs["rowtotal"] !== "")
+                    rowtotal = attrs["rowtotal"].split(',');
+                if (attrs["addspecificrows"])
+                    addspecificrows = attrs["addspecificrows"];                
+
+                return "<div>" + getTable(true) + "<div/>";
+            },
+            link: function ($scope, element, attrs) {
+
+                //pagination
+                $scope.intervalmin = 0;
+                $scope.intervalmax = 10;
+                $scope.total = 0;
+                $scope.nbpage = 1;
+                $scope.currentpage = 1;
+                $scope.selectnbrow = (angular.isDefined($scope.selectnbrow) && $scope.selectnbrow !== null && $scope.selectnbrow !== "" ? $scope.selectnbrow : selectnbrow);
+                $scope.pages = [];
+
+                //sortable
+                $scope.predicate = [];
+                $scope.renverse = [];
+                $scope.notSorted = [];
+                $scope.topSorted = [];
+                $scope.bottomSorted = [];
+                $scope.indexActive = 0;
+                $scope.value = "";
+                //tableau
+                $scope.datavisible = datavisible = (angular.isDefined($scope.visible) ? $scope.visible.split(',') : attrs.visible);
+                $scope.header = header = (angular.isDefined($scope.colonnes) ? $scope.colonnes.split(',') : attrs.colonnes);
+                $scope.colspans = colspans;
+                $scope.checkall = false;
+                $scope.colonnefrozen = colonnefrozen;
+                $scope.ttcolspan = 0;
+                //fonction
+                $scope.icofunction = icofunction;
+
+                formatdate = (angular.isDefined(formatdate) && formatdate !== null && formatdate !== "" ? formatdate : 'dd/MM/yyyy');
+                $scope.formatdate = (angular.isDefined($scope.formatdate) && $scope.formatdate !== null && $scope.formatdate !== "" ? $scope.formatdate : formatdate);
+                $scope.rowtotal = (!rowtotal ? false : rowtotal);
+                //$scope.valuespecificrows = (!$scope.valuespecificrows ? false : $scope.valuespecificrows);
+
+                $scope.filteredItems = [];
+                $scope.totalused = false;
+                if ($scope.selectnbrow !== null && angular.isDefined($scope.selectnbrow) && selectnbrow !== "")
+                    $scope.watchedit = $scope.$watch("selectnbrow", function (value, old) {
+                        if (angular.isUndefined(value) || value === null) return;
+                        if (value != old) {
+                            $scope.selectnbrow = value;
+                            $scope.pages = [];
+                            $scope.selectnbrow = (angular.isDefined($scope.selectnbrow) && $scope.selectnbrow !== null ? $scope.selectnbrow : 10);
+                            $scope.GetNbPage($scope.data.length);
+                            for (var g = 1; g <= $scope.nbpage ; g++) {
+                                $scope.pages.push(g);
+                            }
+
+                            $scope.GoToPage(1);
+                        }
+                    });
+
+                $scope.watchedit = $scope.$watchCollection("data", function (value, old) {
+                    if (angular.isUndefined(value) || value === null) return;
+                    if (value != old) {
+                        $scope.pages = [];
+                        $scope.selectnbrow = (angular.isDefined($scope.selectnbrow) && $scope.selectnbrow !== null ? $scope.selectnbrow : 10);
+                        $scope.GetNbPage(value.length);
+                        $scope.intervalmax = $scope.selectnbrow;
+                        $scope.total = value.length;
+                        $scope.checkall = false;
+
+                    }
+                });
+
+                //$scope.watchedit = $scope.$watchCollection("filteredItems", function (value, old) {
+                //	if (value === undefined || value === null) return;
+                //	if (value != old) {
+                //		$scope.pages = [];
+                //		$scope.selectnbrow = ($scope.selectnbrow !== undefined && $scope.selectnbrow !== null ? $scope.selectnbrow : 10);
+                //		$scope.GetNbPage($scope.data.length);
+                //		$scope.total = value.length;
+                //		$scope.checkall = false;
+                //	}
+                //});
+                $scope.GetNbPage = function (nbrow) {
+                    $scope.nbpage = Math.ceil(nbrow / $scope.selectnbrow);
+                    for (var g = 1; g <= $scope.nbpage ; g++) {
+                        $scope.pages.push({ Value: g });
+                    }
+                };
+                $scope.SelectAll = function () {
+                    $scope.data.forEach(function (item) {
+                        item.IsChecked = $scope.checkall;
+                    });
+                };
+                $scope.PrevPage = function () {
+                    if ($scope.currentpage > 1)
+                        $scope.currentpage -= 1;
+                };
+                $scope.GoToPage = function (nbpage) {
+                    $scope.currentpage = nbpage;
+                };
+                $scope.NextPage = function () {
+                    $scope.intervalmin = (($scope.currentpage + 1) * $scope.selectnbrow) - $scope.selectnbrow;
+                    $scope.intervalmax = $scope.intervalmin + $scope.selectnbrow;
+                    $scope.currentpage += 1;
+                };
+                $scope.change = function (column, i) {
+                    $scope.notSorted[i] = false;
+                    $scope.columnselected = i;
+                    $scope.indexActive = i;
+                    if (angular.isUndefined($scope.predicate[i]) || $scope.predicate[i] === null) {
+                        $scope.predicate[i] = column;
+                        $scope.renverse[i] = false;
+                        $scope.topSorted[i] = false;
+                        $scope.bottomSorted[i] = true;
+                    }
+                    if ($scope.predicate[i][0] == column[0]) {
+                        for (var g = 0; g < $scope.predicate.length; g++) {
+                            if (g != i) {
+                                $scope.notSorted[g] = true;
+                            }
+                        }
+                        $scope.renverse[i] = !$scope.renverse[i];
+                        $scope.topSorted[i] = !$scope.topSorted[i];
+                        $scope.bottomSorted[i] = !$scope.bottomSorted[i];
+                    } else {
+                        $scope.predicate[i] = column;
+                        $scope.renverse[i] = false;
+                        $scope.topSorted[i] = false;
+                        $scope.bottomSorted[i] = true;
+                    }
+                };
+                //Filtre
+                if (filter !== false)
+                    $scope.Filtre = function (valeur) {
+                        return $scope.filter({ val: valeur });
+                    };
+                $scope.getDescendantProp = function (item, desc) {
+                    return getDescendantProp(item, desc);
+                };
+
+                //if (dragable) {
+                //    setTimeout(
+                //        function () {
+                //            $(element[0].children.sortable).dragtable({
+                //                excludeFooter: true,
+                //                dragHandle: '.drag',
+                //                persistState: function (table) {
+                //                    var drag = {
+                //                        OldPosition: table.startIndex,
+                //                        NewPosition: table.endIndex
+                //                    };
+
+                //                    $scope.saveposition({ val: drag });
+                //                }
+                //            });
+                //        }, 500);
+                //}
+                $scope.Freez = function (index) {
+                    $scope.colonnefrozen[$scope.datavisible[index].split(';')[0]] = !$scope.colonnefrozen[$scope.datavisible[index].split(';')[0]];
+                };
+                $scope.ReturnData = function (obj) {
+                    var param = "";
+                    var arrayparam;
+                    param = obj.substring(obj.indexOf('(') + 1, obj.indexOf(')'));
+                    arrayparam = param.split(',');
+                    if (arrayparam === 0) return "{}";
+                    //arrayparam[0] = objet courant
+                    //arrayparam[1] = index objet courant dans la liste
+                    //arrayparam[2..x] = tout argument envoyer (popup / chaine de caractere)
+                    obj = obj.substring(obj.indexOf('(') + 1, obj.indexOf(')')).replace(param, "{" + arrayparam[0] + " : item," + arrayparam[1] + " : $index}");
+                    return obj;
+                };
+                $scope.ReturnClass = function (obj, td) {
+                    var param = "";
+                    var arrayparam;
+                    param = obj.substring(obj.indexOf('(') + 1, obj.indexOf(')'));
+                    arrayparam = param.split(',');
+                    //arrayparam[0] = ligne courant
+                    //arrayparam[1] = colonne
+                    obj = obj.substring(obj.indexOf('(') + 1, obj.indexOf(')')).replace(param, "{" + arrayparam[0] + " : item," + arrayparam[1] + " : '" + td + "'}");
+                    return obj;
+                };
+
+                $scope.GetSum = function (item) {
+                    var tt = "";
+                    if ($scope.rowtotal) {
+                        $scope.rowtotal.forEach(function (obj) {
+
+                            if (item == obj) {
+                                if ($scope.filteredItems) {
+                                    $scope.filteredItems.forEach(function (ob) {
+                                        tt = (isNaN(parseFloat(tt)) ? 0 : parseFloat(tt)) + parseFloat(ob[item]);
+                                    });
+                                    if (!tt) tt = 0;
+                                    $scope.colspantotal++;
+                                }
+                            }
+                        });
+                    }
+                    return !tt ? "" : Math.round(tt * 100) / 100;
+                };
+
+                $scope.Format = function (num) {
+                    if (num && !isNaN(num)) {
+                        num = num + "";
+                        var str = num;
+                        var reg = new RegExp(/(\D*)(\d*(?:[\.|,]\d*)*)(\D*)/g);
+                        if (reg.test(num)) {
+                            var pref = RegExp.$1;
+                            var suf = RegExp.$3;
+                            var part = RegExp.$2;
+                            str = pref + part.match(/(\d{1,3}(?:[\.|,]\d*)?)(?=(\d{3}(?:[\.|,]\d*)?)*$)/g).join(' ') + suf;
+                        }
+                        return str;
+                    }
+
+                    return num ? num : "";
+                };
+
+
+
+            }
+        };
+
+
+        function getTable(original) {
+            var tableau = "";
+            if (original)
+                if (frozen !== false) {
+                    tableau += GetDivFrozen();
+                }
+
+            tableau += "<table md-table class=\"table table-header\" id=\"sortable\">";
+            tableau += AddHeader(original);
+            tableau += "<tbody md-body>" + AddRow(original) + "</tbody>";
+            if (original)
+                if (pagination !== false)
+                    tableau += AddFooter(header.length);
+            tableau += "</table>";
+            return tableau;
+        }
+        function AddHeader(original) {
+            var col = "<thead thead md-head><tr md-row>";
+
+            if (selectlist && original) {
+                col += "<th  md-column><input type=\"checkbox\" ng-model=\"checkall\" ng-change=\"SelectAll()\" /></th>";
+            }
+            col += "<th  md-column ng-repeat=\"(indexhead,head) in header\" ";
+            if (frozen) {
+                if (original)
+                    col += "ng-show=\"!colonnefrozen[datavisible[indexhead].split(';')[0]]\" ";
+                else
+                    col += "ng-if=\"colonnefrozen[datavisible[indexhead].split(';')[0]]\" ";
+            }
+
+            col += "colspan=\"{{ colspans.substring(colspans.indexOf(datavisible[indexhead])+ datavisible[indexhead].length+1,colspans.indexOf(datavisible[indexhead])+ datavisible[indexhead].length+2) }}\" >" +
+                "<span class=\"drag\" >{{head}}</span>";
+            if (frozen) {
+                col += "<span class=\"\" ng-click=\"Freez(indexhead)\">froz</span>"; //futur icone frozen
+            }
+
+            col += "<span class=\"reorder\" ng-class=\"{'ico-nosorted' : notSorted[indexhead] || predicate[indexhead] != datavisible[indexhead], 'ico-topsorted': topSorted[indexhead] && predicate[indexhead] == datavisible[indexhead], 'ico-bottomsorted': bottomSorted[indexhead] && predicate[indexhead] == datavisible[indexhead] }\" ng-click=\"change(datavisible[indexhead].split(';'),indexhead)\"></span>";
+
+            col += "</th>";
+            if ((action !== false || pdf) && original) {
+                col += "<th></th>";
+            }
+            return col + "</tr></thead>";
+        }
+
+        function AddFooter() {
+            var col = "<tfoot class=\"pagination\">";
+            col += "<tr><td colspan=\"{{ header.length +ttcolspan +" + ((colspans ? colspans.split(',').length - 1 : 0) + (selectlist ? 1 : 0)) + "}}\">";
+            col += "<ul>";
+            col += "<li ng-if=\"pages.length > 1\"><button type=\"button\" value=\"start\" ng-click=\"GoToPage(1)\" ><span class=\"ico ico-pager-first\"></span></button></li>";
+            col += "<li ng-if=\"pages.length > 1\"><button type=\"button\" value=\"prev\" ng-click=\"PrevPage()\" ><span class=\"ico ico-pager-prev\"></span></button></li>";
+
+            col += "<li ><select ng-model=\"currentpage\"  ng-options=\"page.Value as page.Value for page in pages\" >" +
+                    "</select></li>";
+
+            col += "<li ng-if=\"currentpage != nbpage\"><button type=\"button\" value=\"next\" ng-click=\"NextPage()\" ><span class=\"ico ico-pager-next\"></span></button></li>";
+            col += "<li ng-if=\"currentpage != nbpage\"><button type=\"button\" value=\"end\" ng-click=\"GoToPage(nbpage)\"><span class=\"ico ico-pager-last\"></span></button></li>";
+            col += "<li class=\"pagination_infos\">{{currentpage}} - {{nbpage}} de {{(data | filter: Filtre).length }} éléments</li>";
+            col += "</ul>";
+            col += "</td>";
+            if ((action || pdf) !== false) {
+                col += "<td></td>";
+            }
+
+            return col + "</tr></tfoot>";
+        }
+        function AddRow(original) {
+            var row = "";
+            var td = "";
+            row += "<tr md-row ng-repeat=\"(datakey,item) in (data | orderBy:predicate[columnselected]:renverse[columnselected]"; //
+            if (filter !== false)
+                row += " | filter: Filtre";
+            if (pagination)// traitement data 
+                row += " | limitTo: selectnbrow : (currentpage * selectnbrow) - selectnbrow"; //currentpage * selectnbrow *-1
+
+            row += ")\"";
+            row += "> ";
+            if (selectlist && original) {
+                td += "<td md-cell><input type=\"checkbox\" ng-model=\"item.IsChecked\" /></td>";
+            }
+            // for (var j = 0; j < datavisible.length; j++) {
+            
+
+            td += "<td md-cell ng-repeat=\"(tdindex, tditem) in datavisible\" ";
+            if (frozen) {
+                if (original)
+                    td += "ng-show=\"!colonnefrozen[datavisible[tdindex].split(';')[0]]\" ";
+                else
+                    td += "ng-if=\"colonnefrozen[datavisible[tdindex].split(';')[0]]\" ";
+            }
+
+            if (customcolumn !== false)
+                td += "class=\"{{customcolumn({item :item, column: tditem.split(';')[0]})}}\" ";
+            td += ">";
+            // if (datavisible[j].split(';').length == 1)
+            td += "<span ng-if=\"datavisible[tdindex].split(';').length == 1\" >{{ Format(getDescendantProp(item,datavisible[tdindex])) }}</span>";
+            //else {
+            //    if (datavisible[j].split(';')[2] !== undefined && datavisible[j].split(';')[2] !== null) {
+            //        propriete = datavisible[j].split(';')[2];
+            //    }
+
+            td += "<div ng-if=\"datavisible[tdindex].split(';').length > 1\" ng-switch=\"datavisible[tdindex].split(';')[1]\">" +
+                    "<span ng-switch-when=\"ico\" ng-click=\"icofunction[datavisible[tdindex].split(';')[3]]({item : item,index : datakey})\" class=\"ico datavisible[tdindex].split(';')[2]\"></span>" +
+                    "<span ng-switch-when=\"data\">{{  getDescendantProp(item,datavisible[tdindex].split(';')[0])  }}</span>" +
+                    "<span ng-switch-when=\"date\">{{  getDescendantProp(item,datavisible[tdindex].split(';')[0]) | date : formatdate }}</span>" +
+                    "<span ng-switch-when=\"fulldate\">{{  getDescendantProp(item,datavisible[tdindex].split(';')[0]) | date : formatdate+' HH:mm:ss' }}</span>" +
+                    "<span ng-switch-when=\"bool\">{{  (getDescendantProp(item,datavisible[tdindex].split(';')[0])? \"oui\":\"non\") }}</span>" +
+                    "<span ng-switch-when=\"html\" ng-bind-html=\"getDescendantProp(item,datavisible[tdindex].split(';')[0])\"></span>" +
+                    "<a ng-switch-when=\"lien\" target=\"_blank\" href=\"{{  item[datavisible[tdindex].split(';')[0]] }}\" >{{  getDescendantProp(item,datavisible[tdindex].split(';')[0])  }}</a>" +
+                    "<ul ng-switch-when=\"liste\">" +
+                        "<li ng-repeat=\"li in item[datavisible[tdindex].split(';')[0]]\">{{li[datavisible[tdindex].split(';')[2]]}}" +
+                                //for (var f = 0; f < datavisible[tdindex].split(';')[2].split('-').length; f++) {
+                                //    li += "{{  li." + propriete.split('-')[f] + " }}";
+                                //}
+                        " </li></ul>" +
+                "<span ng-switch-default>echec du switch</span></div>";
+
+            // "{{getContentCell(datavisible[tdindex].split(';')[1], datavisible[tdindex].split(';')[0], datavisible[tdindex].split(';')[2])}}"+
+            //}
+            td += "</td >";
+            if (colspans !== false) {
+                td += "";
+                //    var nbcolspan = colspans.substring(colspans.indexOf(datavisible[j]) + datavisible[j].length + 1, colspans.indexOf(datavisible[j]) + datavisible[j].length + 2);
+                //    if (!isNaN(parseInt(nbcolspan))) {
+                //        for (var x = 1; x < nbcolspan; x++) {
+                td += "<td ng-if=\"isNumber(colspans.substring(colspans.indexOf(datavisible[tdindex]) + datavisible[tdindex].length + 1, colspans.indexOf(datavisible[tdindex]) + datavisible[tdindex].length + 2))\"";
+                if (frozen) {
+                    if (original)
+                        td += "ng-show=\"!colonnefrozen[datavisible[tdindex].split(';')[0]]\" ";
+                    else
+                        td += "ng-if=\"colonnefrozen[datavisible[tdindex].split(';')[0]]\" ";
+                }
+                td += ">";
+                //            for (var t = 0; t < valuecolspan.length ; t++) {
+                //                if (valuecolspan[t].split(';')[0] == datavisible[j] && valuecolspan[t].split(';')[1] == x) {
+                //                    td += getContentCell(valuecolspan[t].split(';')[2], valuecolspan[t].split(';')[3], icofunction[t], t); //getContentCell(valuecolspan[t].split(';')[2], valuecolspan[t].split(';')[3]);
+                //                }
+                //            }
+                td += "{{ttcolspan++}}</td >";
+                //            ttcolspan++;
+                //        }
+                //    }
+            }
+            //}
+
+            if (pdf)
+                td += "<td md-cell class=\"w5 actions\"><a class=\"ico ico-go-pdf\" href= ></a></td>";
+            if (action !== false && original) {
+                td += "<td md-cell tooltip-auto-size class=\"w5 actions\">" + menu + "</td >";
+            }
+            row += td;
+            row = row + "</tr>";
+
+            if (rowtotal !== false) {
+                //colspan=\"{{datavisible.length - rowtotal.length}}\"
+                //row += "<tr><td ng-repeat=\"(tlindex, tlitem) in datavisible\" ng-if=\"tlindex > 0\"> {{ GetSum(tlitem.split(';')[0],tlindex) }}  </td>  </tr>";
+                row += "<tr md-row><td md-cell class=\"text_right\" colspan=\"{{datavisible.length - rowtotal.length}}\"> TOTAL :</td>" +
+                    "<td md-cell ng-repeat=\"(tlindex, tlitem) in datavisible\" class=\"text_right\" ng-if=\"tlindex > (datavisible.length - rowtotal.length - 1)\"> {{ Format(GetSum(tlitem.split(';')[0]).toString()) }}  </td>  </tr>";
+            }
+
+            if (addspecificrows !== false) {
+                row += "<tr md-row ng-include=\"" + addspecificrows + "\"></tr>";
+                //row += "<tr ng-include=\"'app/partials/frontoffice/include/test.html'\"></tr>";
+            }
+            return row;
+        }
+
+        //function getContentCell(type, source, propriete, occurence) {
+        //    switch (type) {
+        //        case "ico":
+        //            return "<span ng-click=\"icoaction" + (occurence + 1) + "(" + ReturnData(propriete) + ")\" class=\"ico " + source.replace("'", "") + "\" />";
+        //        case "data":
+        //            return "{{ item. " + source + " }}";
+        //        case "lien":
+        //            return "<a target=\"_blank\" href=\"{{  item." + source + " }}\">{{  item." + source + " }}</a>";
+        //        case "liste":
+        //            var li = "";
+        //            li += "<ul>";
+        //            li += "<li ng-repeat=\"li in item." + source + "\">";
+        //            for (var f = 0; f < propriete.split('-').length; f++) {
+        //                li += "{{  li." + propriete.split('-')[f] + " }}";
+        //            }
+        //            li += " </li>";
+        //            li += "</ul>";
+        //            return li;
+
+        //        default:
+        //            return "type de donnée demandé inexistante";
+        //    }
+
+        //}
+        function getAction(actions, actionfunctions) {
+            menu = "";
+
+            menu += "<div><span class=\"ico ico-action\"></span><ul class=\"actions_list\">";
+            for (var g = 0; g < action.length; g++) {
+                if (angular.isDefined(actionfunctions[g]))
+                    menu += "<li ><a ng-click=\"action" + (g + 1) + "(" + ReturnData(actionfunctions[g]) + ")\">" + actions[g] + "</a></li>";
+                else {
+                    menu += "<li ><a>" + actions[g] + "</a></li>";
+                }
+            }
+            menu += "</ul></div>";
+        }
+
+        function GetDivFrozen() {
+            var div = "<div>" + getTable(false) + "</div>";
+            return div;
+        }
+        function getDescendantProp(obj, desc) {
+            var arr = desc.split(".");
+            while (arr.length && (obj = obj[arr.shift()]));
+            return obj;
+        }
+
+        function ReturnData(obj) {
+            var param = "";
+            var arrayparam;
+            param = obj.substring(obj.indexOf('(') + 1, obj.indexOf(')'));
+            arrayparam = param.split(',');
+            if (arrayparam === 0) return "{}";
+            //arrayparam[0] = objet courant
+            //arrayparam[1] = index objet courant dans la liste
+            //arrayparam[2..x] = tout argument envoyer (popup / chaine de caractere)
+            obj = obj.substring(obj.indexOf('(') + 1, obj.indexOf(')')).replace(param, "{" + arrayparam[0] + " : item," + arrayparam[1] + " : $index}");
+            return obj;
+        }
+        //function ReturnClass(obj, td) {
+        //    var param = "";
+        //    var arrayparam;
+        //    param = obj.substring(obj.indexOf('(') + 1, obj.indexOf(')'));
+        //    arrayparam = param.split(',');
+        //    //arrayparam[0] = ligne courant
+        //    //arrayparam[1] = colonne
+        //    obj = obj.substring(obj.indexOf('(') + 1, obj.indexOf(')')).replace(param, "{" + arrayparam[0] + " : item," + arrayparam[1] + " : '" + td + "'}");
+        //    return obj;
+        //}
+    }
+})();
